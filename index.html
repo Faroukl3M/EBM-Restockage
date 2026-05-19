@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EBM — Priorités Restockage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f3ef;
+  --surface: #ffffff;
+  --border: #e0dbd2;
+  --text: #1a1814;
+  --muted: #8a8478;
+  --accent: #1a1814;
+  --rupture: #c0392b;
+  --rupture-bg: #fdf0ee;
+  --critique: #b7660a;
+  --critique-bg: #fdf6ec;
+  --faible: #1a5276;
+  --faible-bg: #eaf0f8;
+  --green: #1e6b3c;
+  --green-bg: #eaf5ee;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --mono: 'DM Mono', monospace;
+  --sans: 'Syne', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ── Header ── */
+header {
+  background: var(--text);
+  color: #f5f3ef;
+  padding: 0 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo { font-size: 14px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.logo span { opacity: 0.45; font-weight: 400; margin-left: 6px; }
+.header-meta { font-family: var(--mono); font-size: 11px; opacity: 0.5; }
+
+/* ── Main layout ── */
+main { max-width: 1280px; margin: 0 auto; padding: 2rem 2.5rem; }
+
+/* ── Upload zone ── */
+#upload-view { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 56px); }
+.upload-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 3rem 2.5rem;
+  max-width: 560px;
+  width: 100%;
+  text-align: center;
+}
+.upload-icon {
+  width: 64px; height: 64px;
+  background: var(--bg);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 1.5rem;
+  font-size: 28px;
+}
+.upload-card h1 { font-size: 22px; font-weight: 800; margin-bottom: 0.5rem; }
+.upload-card p { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 1.75rem; }
+.drop-zone {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2rem 1.5rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 1rem;
+}
+.drop-zone:hover, .drop-zone.dragover { border-color: var(--text); background: var(--bg); }
+.drop-zone-label { font-size: 13px; color: var(--muted); margin-top: 0.5rem; }
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--text); color: #f5f3ef;
+  border: none; border-radius: var(--radius);
+  padding: 10px 20px; font-family: var(--sans); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.85; }
+.btn-outline {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; color: var(--text);
+  border: 0.5px solid var(--border); border-radius: var(--radius);
+  padding: 8px 16px; font-family: var(--sans); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background 0.15s;
+}
+.btn-outline:hover { background: var(--bg); }
+.upload-hint { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 0.75rem; }
+#status-msg { font-size: 12px; color: var(--rupture); margin-top: 0.75rem; min-height: 18px; }
+
+/* ── Dashboard ── */
+#dashboard-view { display: none; }
+.dash-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap; gap: 1rem;
+}
+.dash-title { font-size: 20px; font-weight: 800; }
+.dash-sub { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── KPI cards ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+.kpi-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+}
+.kpi-card.red { border-left: 3px solid var(--rupture); }
+.kpi-card.amber { border-left: 3px solid var(--critique); }
+.kpi-card.blue { border-left: 3px solid var(--faible); }
+.kpi-card.green { border-left: 3px solid var(--green); }
+.kpi-val { font-size: 26px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+.kpi-card.red .kpi-val { color: var(--rupture); }
+.kpi-card.amber .kpi-val { color: var(--critique); }
+.kpi-card.blue .kpi-val { color: var(--faible); }
+.kpi-card.green .kpi-val { color: var(--green); }
+.kpi-lbl { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+/* ── Toolbar ── */
+.toolbar {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.875rem 1.25rem;
+  display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.field select, .field input {
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  font-family: var(--sans); font-size: 13px;
+  background: var(--bg); color: var(--text);
+  height: 34px;
+}
+.field select:focus, .field input:focus { outline: 1.5px solid var(--text); outline-offset: 1px; }
+.spacer { flex: 1; }
+.result-count { font-family: var(--mono); font-size: 11px; color: var(--muted); align-self: center; white-space: nowrap; }
+
+/* ── Table ── */
+.table-wrap {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+thead th {
+  background: var(--bg);
+  padding: 10px 12px;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 0.5px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  position: sticky; top: 0;
+}
+thead th:hover { color: var(--text); }
+thead th.sorted-asc::after { content: ' ↑'; }
+thead th.sorted-desc::after { content: ' ↓'; }
+tbody tr { border-bottom: 0.5px solid var(--border); }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--bg); }
+td { padding: 10px 12px; vertical-align: middle; }
+.num { text-align: right; font-family: var(--mono); }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 999px;
+  font-family: var(--mono); font-size: 10px; font-weight: 500; white-space: nowrap;
+}
+.badge.rupture { background: var(--rupture-bg); color: var(--rupture); }
+.badge.critique { background: var(--critique-bg); color: var(--critique); }
+.badge.faible { background: var(--faible-bg); color: var(--faible); }
+.badge::before { content: '●'; font-size: 7px; }
+
+.prod-title { font-weight: 600; font-size: 12.5px; max-width: 260px; line-height: 1.35; }
+.prod-meta { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+.rank { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+.score-cell { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.score-track { width: 48px; height: 4px; background: var(--bg); border-radius: 2px; overflow: hidden; border: 0.5px solid var(--border); }
+.score-fill { height: 100%; border-radius: 2px; }
+.score-fill.high { background: var(--rupture); }
+.score-fill.mid { background: var(--critique); }
+.score-fill.low { background: var(--faible); }
+
+.trend { font-family: var(--mono); font-size: 11px; }
+.trend.up { color: var(--green); }
+.trend.down { color: var(--rupture); }
+.trend.flat { color: var(--muted); }
+
+.stock-cell { display: flex; align-items: center; gap: 5px; }
+.stock-num { font-family: var(--mono); font-size: 12px; font-weight: 500; min-width: 12px; }
+.stock-pips { display: flex; gap: 2px; }
+.pip { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+.pip.on.r { background: var(--rupture); }
+.pip.on.a { background: var(--critique); }
+.pip.on.f { background: var(--faible); }
+
+/* ── Pagination ── */
+.pagination {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.875rem 1.25rem;
+  border-top: 0.5px solid var(--border);
+  background: var(--surface);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+}
+.pag-btns { display: flex; gap: 4px; }
+.pag-btn {
+  padding: 5px 12px; border-radius: var(--radius);
+  border: 0.5px solid var(--border);
+  background: var(--surface); color: var(--text);
+  font-family: var(--mono); font-size: 11px;
+  cursor: pointer; transition: background 0.1s;
+}
+.pag-btn:hover:not(:disabled) { background: var(--bg); }
+.pag-btn:disabled { opacity: 0.35; cursor: default; }
+
+/* ── Views toggle ── */
+.view-tabs { display: flex; gap: 4px; background: var(--bg); border-radius: var(--radius); padding: 3px; }
+.tab {
+  padding: 5px 14px; border-radius: 4px; border: none;
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  cursor: pointer; color: var(--muted); background: transparent; transition: all 0.15s;
+}
+.tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+/* ── Brand view ── */
+.brand-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.brand-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+}
+.brand-name { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+.brand-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-bottom: 4px; }
+.brand-row .lbl { color: var(--muted); font-family: var(--mono); }
+.brand-row .val { font-family: var(--mono); font-weight: 500; }
+
+/* ── Upload again button ── */
+#change-file { background: none; border: none; font-family: var(--mono); font-size: 10px; color: var(--muted); cursor: pointer; text-decoration: underline; }
+#change-file:hover { color: var(--text); }
+
+/* Loading overlay */
+#loading {
+  position: fixed; inset: 0;
+  background: rgba(245,243,239,0.85);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 999;
+  flex-direction: column; gap: 1rem;
+}
+.spinner-ring {
+  width: 36px; height: 36px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading p { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+@media (max-width: 900px) {
+  main { padding: 1rem 1rem; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  header { padding: 0 1rem; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">EBM <span>Restockage</span></div>
+  <div class="header-meta" id="header-date"></div>
+</header>
+
+<div id="loading">
+  <div class="spinner-ring"></div>
+  <p id="loading-msg">Analyse en cours...</p>
+</div>
+
+<main>
+
+<!-- ══════════════ UPLOAD VIEW ══════════════ -->
+<div id="upload-view">
+  <div class="upload-card">
+    <div class="upload-icon">📦</div>
+    <h1>Priorités Restockage</h1>
+    <p>Uploadez votre export Matrixify (.xlsx) pour générer automatiquement la liste des produits à remettre en stock, triés par priorité.</p>
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div style="font-size:32px;margin-bottom:8px">⬆</div>
+      <div style="font-weight:700;font-size:14px">Glisser-déposer votre export</div>
+      <div class="drop-zone-label">ou cliquer pour sélectionner</div>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx" style="display:none">
+    <button class="btn-primary" onclick="document.getElementById('file-input').click()">
+      Choisir un fichier .xlsx
+    </button>
+    <div class="upload-hint">Fonctionne hors ligne — aucune donnée envoyée sur internet</div>
+    <div id="status-msg"></div>
+  </div>
+</div>
+
+<!-- ══════════════ DASHBOARD VIEW ══════════════ -->
+<div id="dashboard-view">
+
+  <div class="dash-top">
+    <div>
+      <div class="dash-title" id="dash-title">Priorités de restockage</div>
+      <div class="dash-sub" id="dash-sub"></div>
+    </div>
+    <div class="actions">
+      <button class="btn-outline" id="change-file-btn" onclick="resetTool()">↩ Nouvel export</button>
+      <button class="btn-outline" onclick="exportExcel()">⬇ Export Excel chargé de stock</button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi-card red"><div class="kpi-val" id="k-rupt">—</div><div class="kpi-lbl">Ruptures de stock</div></div>
+    <div class="kpi-card amber"><div class="kpi-val" id="k-crit">—</div><div class="kpi-lbl">Stock critique (1 unité)</div></div>
+    <div class="kpi-card blue"><div class="kpi-val" id="k-faib">—</div><div class="kpi-lbl">Stock faible (2–3 unités)</div></div>
+    <div class="kpi-card green"><div class="kpi-val" id="k-rev">—</div><div class="kpi-lbl">CA généré (période)</div></div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="field">
+      <label>Urgence</label>
+      <select id="f-urgency" onchange="applyFilters()">
+        <option value="">Toutes</option>
+        <option value="RUPTURE">Rupture</option>
+        <option value="CRITIQUE">Critique</option>
+        <option value="FAIBLE">Faible</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Marque</label>
+      <select id="f-vendor" onchange="applyFilters()">
+        <option value="">Toutes</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Trier par</label>
+      <select id="f-sort" onchange="applyFilters()">
+        <option value="priority_score">Score de priorité</option>
+        <option value="revenue">Chiffre d'affaires</option>
+        <option value="qty_sold">Qté vendue (période)</option>
+        <option value="qty_last_30d">Ventes 30 derniers jours</option>
+        <option value="stock">Stock restant</option>
+      </select>
+    </div>
+    <div class="spacer"></div>
+    <div class="field">
+      <label>Recherche</label>
+      <input type="text" id="f-search" placeholder="Produit, marque, SKU…" oninput="applyFilters()" style="width:210px">
+    </div>
+    <div style="align-self:flex-end">
+      <div class="view-tabs">
+        <button class="tab active" onclick="setView('table')" id="tab-table">Tableau</button>
+        <button class="tab" onclick="setView('brand')" id="tab-brand">Par marque</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table view -->
+  <div id="view-table">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="setSort('rank')" id="th-rank">#</th>
+            <th>Produit</th>
+            <th onclick="setSort('revenue')" id="th-revenue" class="num">CA (€)</th>
+            <th onclick="setSort('qty_sold')" id="th-qty_sold" class="num">Qté vendues</th>
+            <th onclick="setSort('qty_last_30d')" id="th-qty_last_30d" class="num">30 derniers jours</th>
+            <th onclick="setSort('qty_30_90d')" id="th-qty_30_90d" class="num">J-30/90</th>
+            <th onclick="setSort('stock')" id="th-stock">Stock</th>
+            <th onclick="setSort('price')" id="th-price" class="num">Prix (€)</th>
+            <th>Urgence</th>
+            <th onclick="setSort('priority_score')" id="th-priority_score" class="num sorted-desc">Score</th>
+          </tr>
+        </thead>
+        <tbody id="tbl-body"></tbody>
+      </table>
+      <div class="pagination">
+        <span id="pag-info"></span>
+        <div class="pag-btns">
+          <button class="pag-btn" id="btn-prev" onclick="changePage(-1)">← Préc.</button>
+          <button class="pag-btn" id="btn-next" onclick="changePage(1)">Suiv. →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Brand view -->
+  <div id="view-brand" style="display:none">
+    <div class="brand-grid" id="brand-grid"></div>
+  </div>
+
+</div><!-- /dashboard -->
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* ════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════ */
+let allData = [];
+let filtered = [];
+let currentPage = 1;
+let sortKey = 'priority_score';
+let sortDir = 'desc';
+const PER_PAGE = 25;
+let maxScore = 1;
+let periodLabel = '';
+
+document.getElementById('header-date').textContent = new Date().toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+
+/* ════════════════════════════════════════════
+   FILE HANDLING
+════════════════════════════════════════════ */
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+});
+document.getElementById('file-input').addEventListener('change', e => {
+  if (e.target.files[0]) processFile(e.target.files[0]);
+});
+
+function setStatus(msg, isError = false) {
+  const el = document.getElementById('status-msg');
+  el.textContent = msg;
+  el.style.color = isError ? 'var(--rupture)' : 'var(--green)';
+}
+
+function showLoading(msg = 'Analyse en cours…') {
+  document.getElementById('loading-msg').textContent = msg;
+  document.getElementById('loading').style.display = 'flex';
+}
+function hideLoading() {
+  document.getElementById('loading').style.display = 'none';
+}
+
+function processFile(file) {
+  showLoading('Lecture du fichier Matrixify…');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const sheetNames = wb.SheetNames.map(s => s.toLowerCase());
+      const ordIdx = sheetNames.findIndex(s => s.includes('order'));
+      const prodIdx = sheetNames.findIndex(s => s.includes('product'));
+      if (ordIdx < 0 || prodIdx < 0) {
+        hideLoading();
+        setStatus('⚠ Fichier invalide — onglets "Products" et "Orders" requis.', true);
+        return;
+      }
+      document.getElementById('loading-msg').textContent = 'Calcul des priorités…';
+      setTimeout(() => {
+        const orders = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[ordIdx]]);
+        const products = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[prodIdx]]);
+        const data = computePriorities(orders, products);
+        hideLoading();
+        if (data.length === 0) { setStatus('⚠ Aucun produit prioritaire trouvé.', true); return; }
+        initDashboard(data, file.name);
+      }, 50);
+    } catch (err) {
+      hideLoading();
+      setStatus('⚠ Erreur : ' + err.message, true);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ════════════════════════════════════════════
+   COMPUTE PRIORITIES
+════════════════════════════════════════════ */
+function computePriorities(orders, products) {
+  const lineItems = orders.filter(o =>
+    (o['Line: Type'] === 'Line Item' || o['Line: Type'] === 'line_item') &&
+    !o['Cancelled At']
+  );
+
+  const refDate = lineItems.reduce((max, o) => {
+    const d = new Date(o['Created At']);
+    return d > max ? d : max;
+  }, new Date(0));
+
+  periodLabel = lineItems.length
+    ? `Export analysé — ${lineItems.length} lignes de commandes`
+    : '';
+
+  const sales = {};
+  lineItems.forEach(o => {
+    const h = o['Line: Product Handle'];
+    if (!h) return;
+    if (!sales[h]) sales[h] = {
+      handle: h,
+      title: String(o['Line: Title'] || '').slice(0, 90),
+      vendor: String(o['Line: Vendor'] || ''),
+      sku: String(o['Line: SKU'] || ''),
+      qty: 0, rev: 0, orderIds: new Set(), recent: 0, older: 0
+    };
+    const s = sales[h];
+    const qty = parseFloat(o['Line: Quantity']) || 0;
+    const rev = parseFloat(o['Line: Total']) || 0;
+    const created = new Date(o['Created At']);
+    const ageDays = (refDate - created) / 86400000;
+    s.qty += qty;
+    s.rev += rev;
+    if (o['ID']) s.orderIds.add(String(o['ID']));
+    if (ageDays <= 30) s.recent += qty;
+    else if (ageDays <= 90) s.older += qty;
+  });
+
+  const inventory = {};
+  products.forEach(p => {
+    const isTop = p['Top Row'] === true || p['Top Row'] === 'true' || p['Top Row'] === 1 || p['Top Row'] === '1';
+    if (!isTop) return;
+    inventory[p['Handle']] = {
+      stock: parseFloat(p['Total Inventory Qty']) || 0,
+      price: parseFloat(p['Variant Price']) || 0,
+      status: String(p['Status'] || '')
+    };
+  });
+
+  const result = [];
+  Object.values(sales).forEach(s => {
+    const inv = inventory[s.handle];
+    if (!inv || inv.status !== 'Active' || inv.stock > 3) return;
+    const score = s.qty * 3 + s.recent * 5 + s.rev * 0.1 + s.orderIds.size * 2;
+    const urgency = inv.stock <= 0 ? 'RUPTURE' : inv.stock === 1 ? 'CRITIQUE' : 'FAIBLE';
+    result.push({
+      title: s.title, vendor: s.vendor, sku: s.sku,
+      qty_sold: Math.round(s.qty),
+      revenue: Math.round(s.rev * 100) / 100,
+      orders: s.orderIds.size,
+      qty_last_30d: Math.round(s.recent),
+      qty_30_90d: Math.round(s.older),
+      stock: Math.round(inv.stock),
+      price: Math.round(inv.price * 100) / 100,
+      priority_score: Math.round(score * 10) / 10,
+      urgency
+    });
+  });
+
+  return result.sort((a, b) => b.priority_score - a.priority_score);
+}
+
+/* ════════════════════════════════════════════
+   DASHBOARD
+════════════════════════════════════════════ */
+function initDashboard(data, filename) {
+  allData = data;
+  maxScore = Math.max(...data.map(d => d.priority_score)) || 1;
+  filtered = [...data];
+
+  document.getElementById('dash-sub').textContent =
+    `${filename} · ${data.length} produits prioritaires · ${periodLabel}`;
+
+  const vendors = [...new Set(data.map(d => d.vendor))].sort();
+  const sel = document.getElementById('f-vendor');
+  sel.innerHTML = '<option value="">Toutes les marques</option>' +
+    vendors.map(v => `<option value="${v}">${v}</option>`).join('');
+
+  updateKPIs(data);
+  sortKey = 'priority_score'; sortDir = 'desc';
+  currentPage = 1;
+  renderTable();
+  renderBrands();
+
+  document.getElementById('upload-view').style.display = 'none';
+  document.getElementById('dashboard-view').style.display = 'block';
+}
+
+function resetTool() {
+  document.getElementById('dashboard-view').style.display = 'none';
+  document.getElementById('upload-view').style.display = 'flex';
+  document.getElementById('file-input').value = '';
+  document.getElementById('status-msg').textContent = '';
+}
+
+function updateKPIs(data) {
+  document.getElementById('k-rupt').textContent = data.filter(d => d.urgency === 'RUPTURE').length;
+  document.getElementById('k-crit').textContent = data.filter(d => d.urgency === 'CRITIQUE').length;
+  document.getElementById('k-faib').textContent = data.filter(d => d.urgency === 'FAIBLE').length;
+  const rev = data.reduce((s, d) => s + d.revenue, 0);
+  document.getElementById('k-rev').textContent = rev.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+}
+
+/* ════════════════════════════════════════════
+   FILTERS & SORT
+════════════════════════════════════════════ */
+function applyFilters() {
+  const urgency = document.getElementById('f-urgency').value;
+  const vendor = document.getElementById('f-vendor').value;
+  const search = document.getElementById('f-search').value.toLowerCase().trim();
+  const sort = document.getElementById('f-sort').value;
+  sortKey = sort; sortDir = 'desc';
+
+  filtered = allData.filter(d => {
+    if (urgency && d.urgency !== urgency) return false;
+    if (vendor && d.vendor !== vendor) return false;
+    if (search && !d.title.toLowerCase().includes(search) &&
+        !d.vendor.toLowerCase().includes(search) &&
+        !d.sku.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  filtered.sort((a, b) => {
+    if (sort === 'stock') return a.stock - b.stock;
+    return b[sort] - a[sort];
+  });
+
+  updateKPIs(filtered);
+  currentPage = 1;
+  renderTable();
+  renderBrands();
+}
+
+function setSort(key) {
+  if (sortKey === key) sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+  else { sortKey = key; sortDir = 'desc'; }
+  filtered.sort((a, b) => {
+    const mul = sortDir === 'asc' ? 1 : -1;
+    if (key === 'stock') return (a.stock - b.stock) * mul;
+    return (b[key] - a[key]) * mul;
+  });
+  document.querySelectorAll('thead th').forEach(th => {
+    th.classList.remove('sorted-asc', 'sorted-desc');
+    const id = th.id.replace('th-', '');
+    if (id === key) th.classList.add(sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+  });
+  renderTable();
+}
+
+/* ════════════════════════════════════════════
+   RENDER TABLE
+════════════════════════════════════════════ */
+function renderTable() {
+  const start = (currentPage - 1) * PER_PAGE;
+  const page = filtered.slice(start, start + PER_PAGE);
+
+  const urgClass = { RUPTURE: 'r', CRITIQUE: 'a', FAIBLE: 'f' };
+
+  document.getElementById('tbl-body').innerHTML = page.map((d, i) => {
+    const uc = urgClass[d.urgency];
+    const trend = d.qty_last_30d > d.qty_30_90d ? '<span class="trend up">↑</span>'
+                : d.qty_last_30d < d.qty_30_90d ? '<span class="trend down">↓</span>'
+                : '<span class="trend flat">–</span>';
+    const pct = Math.round(d.priority_score / maxScore * 100);
+    const cls = pct > 60 ? 'high' : pct > 25 ? 'mid' : 'low';
+    const pips = [1,2,3].map(n =>
+      `<span class="pip${d.stock >= n ? ' on ' + uc : ''}"></span>`).join('');
+    const rank = start + i + 1;
+    return `<tr>
+      <td><span class="rank">${rank}</span></td>
+      <td>
+        <div class="prod-title">${d.title}</div>
+        <div class="prod-meta">${d.vendor} &nbsp;·&nbsp; ${d.sku}</div>
+      </td>
+      <td class="num">${d.revenue.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+      <td class="num">${d.qty_sold}</td>
+      <td class="num">${d.qty_last_30d} ${trend}</td>
+      <td class="num">${d.qty_30_90d}</td>
+      <td>
+        <div class="stock-cell">
+          <div class="stock-pips">${pips}</div>
+          <span class="stock-num">${d.stock}</span>
+        </div>
+      </td>
+      <td class="num">${d.price.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+      <td><span class="badge ${d.urgency.toLowerCase()}">${d.urgency}</span></td>
+      <td>
+        <div class="score-cell">
+          <div class="score-track"><div class="score-fill ${cls}" style="width:${pct}%"></div></div>
+          <span style="font-family:var(--mono);font-size:11px">${d.priority_score}</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const total = filtered.length;
+  const totalPages = Math.ceil(total / PER_PAGE);
+  document.getElementById('pag-info').textContent =
+    `${start + 1}–${Math.min(start + PER_PAGE, total)} sur ${total} produits`;
+  document.getElementById('btn-prev').disabled = currentPage <= 1;
+  document.getElementById('btn-next').disabled = currentPage >= totalPages;
+}
+
+function changePage(dir) {
+  currentPage += dir;
+  renderTable();
+  const hdr = document.querySelector('header');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ════════════════════════════════════════════
+   RENDER BRANDS
+════════════════════════════════════════════ */
+function renderBrands() {
+  const map = {};
+  filtered.forEach(d => {
+    if (!map[d.vendor]) map[d.vendor] = { vendor: d.vendor, count: 0, rupt: 0, crit: 0, rev: 0, score: 0 };
+    const b = map[d.vendor];
+    b.count++; b.rev += d.revenue;
+    if (d.urgency === 'RUPTURE') b.rupt++;
+    if (d.urgency === 'CRITIQUE') b.crit++;
+    b.score = Math.max(b.score, d.priority_score);
+  });
+  const brands = Object.values(map).sort((a, b) => b.score - a.score);
+  document.getElementById('brand-grid').innerHTML = brands.map(b => `
+    <div class="brand-card">
+      <div class="brand-name">${b.vendor}</div>
+      <div class="brand-row"><span class="lbl">Produits à restockes</span><span class="val">${b.count}</span></div>
+      <div class="brand-row"><span class="lbl">Ruptures</span><span class="val" style="color:var(--rupture)">${b.rupt || '—'}</span></div>
+      <div class="brand-row"><span class="lbl">Critiques</span><span class="val" style="color:var(--critique)">${b.crit || '—'}</span></div>
+      <div class="brand-row"><span class="lbl">CA période</span><span class="val">${b.rev.toLocaleString('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0})}</span></div>
+      <div class="brand-row"><span class="lbl">Score max</span><span class="val">${b.score}</span></div>
+    </div>`).join('');
+}
+
+/* ════════════════════════════════════════════
+   VIEW TOGGLE
+════════════════════════════════════════════ */
+function setView(v) {
+  document.getElementById('view-table').style.display = v === 'table' ? 'block' : 'none';
+  document.getElementById('view-brand').style.display = v === 'brand' ? 'block' : 'none';
+  document.getElementById('tab-table').className = 'tab' + (v === 'table' ? ' active' : '');
+  document.getElementById('tab-brand').className = 'tab' + (v === 'brand' ? ' active' : '');
+}
+
+/* ════════════════════════════════════════════
+   EXCEL EXPORT — RAPPORT CHARGÉ DE STOCK
+════════════════════════════════════════════ */
+function exportExcel() {
+  if (!filtered.length) return;
+  showLoading('Génération du rapport Excel…');
+  setTimeout(() => { exportWithExcelJS(); }, 60);
+}
+
+async function exportWithExcelJS() {
+  try {
+    if (typeof ExcelJS === 'undefined') {
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js');
+    }
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'EBM Restock Analyzer';
+    workbook.created = new Date();
+    const today = new Date().toLocaleDateString('fr-FR');
+
+    const rupt  = filtered.filter(d => d.urgency === 'RUPTURE');
+    const crit  = filtered.filter(d => d.urgency === 'CRITIQUE');
+    const faib  = filtered.filter(d => d.urgency === 'FAIBLE');
+    const totalRev = filtered.reduce((s,d) => s + d.revenue, 0);
+
+    const C = {
+      dark:'FF1A1814', white:'FFF5F3EF', muted:'FF8A8478',
+      ruptBg:'FFFDF0EE', ruptTxt:'FFC0392B',
+      critBg:'FFFDF6EC', critTxt:'FFB7660A',
+      faibBg:'FFEAF0F8', faibTxt:'FF1A5276',
+      grnBg:'FFEAF5EE', grnTxt:'FF1E6B3C',
+      border:'FFE0DBD2'
+    };
+    const thin = { style:'thin', color:{ argb:C.border } };
+    const allBorders = { top:thin, bottom:thin, left:thin, right:thin };
+
+    function bgFor(u) { return u==='RUPTURE'?C.ruptBg : u==='CRITIQUE'?C.critBg : C.faibBg; }
+    function fgFor(u) { return u==='RUPTURE'?C.ruptTxt : u==='CRITIQUE'?C.critTxt : C.faibTxt; }
+
+    function applyCell(c, val, {bg=null, fg=C.dark, bold=false, size=9, halign='left', wrap=false, numFmt=null}={}) {
+      c.value = val;
+      c.font = { bold, size, color:{argb:fg}, name:'Arial' };
+      c.alignment = { horizontal:halign, vertical:'middle', wrapText:wrap };
+      c.border = allBorders;
+      if (bg) c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:bg} };
+      if (numFmt) c.numFmt = numFmt;
+    }
+
+    function applyHdrRow(ws, rowNum, labels) {
+      const row = ws.getRow(rowNum);
+      labels.forEach((lbl, i) => {
+        const c = row.getCell(i+1);
+        c.value = lbl;
+        c.font = { bold:true, size:9, color:{argb:C.white}, name:'Arial' };
+        c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:C.dark} };
+        c.alignment = { horizontal:'center', vertical:'middle' };
+        c.border = allBorders;
+      });
+      row.height = 20;
+      row.commit();
+    }
+
+    /* ══ SHEET 1 — Synthèse ══ */
+    const ws1 = workbook.addWorksheet('Synthèse');
+    ws1.properties.defaultRowHeight = 18;
+
+    ws1.mergeCells('A1:J1');
+    applyCell(ws1.getCell('A1'), 'EBM — Rapport de Restockage Prioritaire',
+      { fg:C.dark, bold:true, size:16 });
+    ws1.getRow(1).height = 32;
+
+    ws1.mergeCells('K1:N1');
+    applyCell(ws1.getCell('K1'), `Généré le ${today}`, { fg:C.muted, size:10, halign:'right' });
+
+    ws1.getRow(2).height = 8;
+
+    const kpiDefs = [
+      ['A','B', String(rupt.length),  'RUPTURES DE STOCK',       C.ruptBg, C.ruptTxt],
+      ['C','D', String(crit.length),  'STOCK CRITIQUE (1 UNITÉ)', C.critBg, C.critTxt],
+      ['E','F', String(faib.length),  'STOCK FAIBLE (2–3 UNITÉS)',C.faibBg, C.faibTxt],
+      ['G','H', `${Math.round(totalRev).toLocaleString('fr-FR')} €`, 'CA GÉNÉRÉ (PÉRIODE)', C.grnBg, C.grnTxt],
+    ];
+    kpiDefs.forEach(([c1,c2,val,lbl,bg,fg]) => {
+      ws1.mergeCells(`${c1}3:${c2}3`);
+      ws1.mergeCells(`${c1}4:${c2}4`);
+      applyCell(ws1.getCell(`${c1}3`), val, {bg, fg, bold:true, size:22, halign:'center'});
+      applyCell(ws1.getCell(`${c1}4`), lbl, {bg, fg, size:9, halign:'center'});
+    });
+    ws1.getRow(3).height = 28;
+    ws1.getRow(4).height = 18;
+    ws1.getRow(5).height = 10;
+
+    ws1.mergeCells('A6:N6');
+    applyCell(ws1.getCell('A6'),
+      `TOP 20 PRODUITS PRIORITAIRES  ·  ${filtered.length} produits identifiés au total`,
+      {fg:C.dark, bold:true, size:11});
+    ws1.getRow(6).height = 22;
+    ws1.getRow(7).height = 6;
+
+    // Header row 8
+    applyHdrRow(ws1, 8, ['#','SKU','Produit','Marque','Stock','Urgence',
+      'Qté vendues','Ventes 30j','CA (€)','Prix unit. (€)','Score']);
+
+    // Data rows (top 20)
+    filtered.slice(0,20).forEach((d,i) => {
+      const u = d.urgency;
+      const bg = bgFor(u), fg = fgFor(u);
+      const rowNum = 9 + i;
+      const row = ws1.getRow(rowNum);
+      const cells = [
+        [i+1,    {bg, fg:C.muted, halign:'center'}],
+        [d.sku,  {bg, halign:'left'}],
+        [d.title,{bg, halign:'left', wrap:true}],
+        [d.vendor,{bg, bold:true}],
+        [d.stock, {bg, halign:'center'}],
+        [u,      {bg, fg, bold:true, halign:'center'}],
+        [d.qty_sold, {bg, halign:'center'}],
+        [d.qty_last_30d, {bg, halign:'center'}],
+        [d.revenue, {bg, halign:'right', numFmt:'#,##0.00'}],
+        [d.price,   {bg, halign:'right', numFmt:'#,##0.00'}],
+        [d.priority_score, {bg, halign:'right', numFmt:'0.0'}],
+      ];
+      cells.forEach(([val, opts], ci) => applyCell(row.getCell(ci+1), val, opts));
+      row.height = d.title.length > 50 ? 32 : 20;
+      row.commit();
+    });
+
+    ws1.columns = [
+      {width:4},{width:12},{width:46},{width:20},{width:7},{width:12},
+      {width:11},{width:11},{width:13},{width:13},{width:9}
+    ];
+
+    /* ══ SHEET 2 — Liste complète ══ */
+    const ws2 = workbook.addWorksheet('Liste complète');
+    ws2.properties.defaultRowHeight = 18;
+    ws2.views = [{ state:'frozen', ySplit:1 }];
+
+    const hdrs2 = ['#','SKU','Produit','Marque','Stock actuel','Urgence',
+      'Prix unit. (€)','Qté vendues','Commandes','Ventes 30j','Ventes J-30/90',
+      'CA période (€)','Score priorité','Action suggérée'];
+    applyHdrRow(ws2, 1, hdrs2);
+
+    filtered.forEach((d,i) => {
+      const u = d.urgency;
+      const bg = bgFor(u), fg = fgFor(u);
+      const action = u==='RUPTURE'?'Commander immédiatement':u==='CRITIQUE'?'Commander cette semaine':'Planifier réassort';
+      const row = ws2.getRow(i+2);
+      const cells = [
+        [i+1,    {bg, halign:'center'}],
+        [d.sku,  {bg}],
+        [d.title,{bg, wrap:true}],
+        [d.vendor,{bg, bold:true}],
+        [d.stock, {bg, halign:'center'}],
+        [u,      {bg, fg, bold:true, halign:'center'}],
+        [d.price,{bg, halign:'right', numFmt:'#,##0.00'}],
+        [d.qty_sold,{bg, halign:'center'}],
+        [d.orders,{bg, halign:'center'}],
+        [d.qty_last_30d,{bg, halign:'center'}],
+        [d.qty_30_90d,{bg, halign:'center'}],
+        [d.revenue,{bg, halign:'right', numFmt:'#,##0.00'}],
+        [d.priority_score,{bg, halign:'right', numFmt:'0.0'}],
+        [action, {bg, fg, bold:u==='RUPTURE', wrap:true}],
+      ];
+      cells.forEach(([val, opts], ci) => applyCell(row.getCell(ci+1), val, opts));
+      row.height = d.title.length > 45 ? 30 : 18;
+      row.commit();
+    });
+
+    ws2.autoFilter = { from:'A1', to:{ row:1, column:hdrs2.length } };
+    ws2.columns = [
+      {width:4},{width:12},{width:48},{width:22},{width:10},{width:12},
+      {width:11},{width:12},{width:11},{width:11},{width:13},{width:14},{width:11},{width:26}
+    ];
+
+    /* ══ SHEET 3 — Par marque ══ */
+    const ws3 = workbook.addWorksheet('Par marque');
+    ws3.properties.defaultRowHeight = 18;
+    ws3.views = [{ state:'frozen', ySplit:1 }];
+
+    const brandMap = {};
+    filtered.forEach(d => {
+      const v = d.vendor;
+      if(!brandMap[v]) brandMap[v]={vendor:v,count:0,rupt:0,crit:0,faib:0,rev:0,qty:0,score:0};
+      const b=brandMap[v];
+      b.count++; b.rev+=d.revenue; b.qty+=d.qty_sold;
+      if(d.urgency==='RUPTURE') b.rupt++;
+      if(d.urgency==='CRITIQUE') b.crit++;
+      if(d.urgency==='FAIBLE') b.faib++;
+      b.score=Math.max(b.score,d.priority_score);
+    });
+    const brands3 = Object.values(brandMap).sort(
+      (a,b) => b.rupt*100+b.crit*10+b.score - (a.rupt*100+a.crit*10+a.score));
+
+    const hdrs3 = ['Marque','Produits à restockes','Ruptures','Critiques',
+      'Faibles','Qté total vendue','CA période (€)','Score max'];
+    applyHdrRow(ws3, 1, hdrs3);
+
+    brands3.forEach((b,i) => {
+      const u = b.rupt>0?'RUPTURE':b.crit>0?'CRITIQUE':'FAIBLE';
+      const bg = bgFor(u);
+      const row = ws3.getRow(i+2);
+      [
+        [b.vendor, {bg, bold:true}],
+        [b.count,  {bg, halign:'center'}],
+        [b.rupt,   {bg, fg:b.rupt>0?C.ruptTxt:C.dark, bold:b.rupt>0, halign:'center'}],
+        [b.crit,   {bg, fg:b.crit>0?C.critTxt:C.dark, bold:b.crit>0, halign:'center'}],
+        [b.faib,   {bg, halign:'center'}],
+        [b.qty,    {bg, halign:'center'}],
+        [b.rev,    {bg, halign:'right', numFmt:'#,##0.00'}],
+        [b.score,  {bg, halign:'right', numFmt:'0.0'}],
+      ].forEach(([val,opts],ci) => applyCell(row.getCell(ci+1), val, opts));
+      row.commit();
+    });
+
+    ws3.autoFilter = { from:'A1', to:{ row:1, column:hdrs3.length } };
+    ws3.columns = [{width:28},{width:18},{width:10},{width:10},{width:9},{width:16},{width:15},{width:10}];
+
+    /* ── Export ── */
+    const buf = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `EBM_Restock_${new Date().toISOString().slice(0,10)}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+    hideLoading();
+
+  } catch(err) {
+    hideLoading();
+    alert('Erreur export: ' + err.message);
+    console.error(err);
+  }
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Impossible de charger: ' + src));
+    document.head.appendChild(s);
+  });
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+</body>
+</html>
